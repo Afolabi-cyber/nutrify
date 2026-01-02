@@ -4,3 +4,4 @@ python-dotenv
 google-genai
 werkzeug
 gunicorn
+google-api-core
