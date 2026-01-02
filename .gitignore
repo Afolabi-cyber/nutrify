@@ -1,0 +1,8 @@
+__pycache__/
+.env
+nutrify.db
+*.pyc
+.DS_Store
+venv/
+.idea/
+.vscode/
