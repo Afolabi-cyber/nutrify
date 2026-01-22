@@ -90,7 +90,7 @@ client = genai.Client(api_key=os.getenv('GOOGLE_API_KEY'))
 
 def generate_with_retry(model_name, contents):
     """
-    Wraps client.models.generate_content with exponential backoff for 429 errors.
+    Wraps client.models.generate_content with exponential backoff for 429 and 503 errors.
     """
     max_retries = 3
     base_delay = 2  # seconds
@@ -101,13 +101,13 @@ def generate_with_retry(model_name, contents):
                 model=model_name,
                 contents=contents
             )
-        except exceptions.ResourceExhausted:
+        except (exceptions.ResourceExhausted, exceptions.ServiceUnavailable, exceptions.InternalServerError) as e:
             if attempt == max_retries:
                 raise
             
             # Exponential backoff + jitter: 2s, 4s, 8s... (+ random ms)
             sleep_time = (base_delay * (2 ** attempt)) + (random.randint(0, 1000) / 1000)
-            print(f"Quota exceeded. Retrying in {sleep_time:.2f} seconds...")
+            print(f"API Error ({type(e).__name__}). Retrying in {sleep_time:.2f} seconds...")
             time.sleep(sleep_time)
         except Exception as e:
             # Re-raise other exceptions immediately
@@ -310,6 +310,8 @@ def analyze_health():
                  user_context = f"The user is a {user['age']} year old {user['gender']}."
 
         # Create comprehensive health analysis prompt
+        dufil_brands = "Indomie (Noodles), Power Oil (Vegetable Oil), Minimie (Chinchin/Noodles), Addmie (Seasoning), Kelloggs (Cereal)"
+        
         health_prompt = f"""Analyze these food ingredients based on Nigerian dietary standards: {', '.join(ingredients)}
 {user_context}
 
@@ -324,19 +326,14 @@ Please provide a CONCISE and UX-friendly analysis in the following JSON format:
     "dufil_products": [
         {{
             "product_name": "name of DUFIL product",
-            "reason": "Very brief reason",
-            "benefit": "Core benefit"
-        }}
-    ],
-    "tolaram_products": [
-        {{
-            "product_name": "name of Tolaram product",
-            "usage": "Brief usage tip",
-            "benefit": "Core benefit"
+            "reason": "Very brief reason why this brand's product is a good addition or alternative",
+            "benefit": "Core benefit of using this brand"
         }}
     ]
 }}
 
+CRITICAL: You MUST recommend at most 2 products from the following DUFIL FOODS brands only: {dufil_brands}. 
+Do NOT recommend any other brands. If none of these products are directly relevant, suggest the most versatile ones like Power Oil or Pure Flour based on the meal context.
 Keep the language simple, direct, and easy to read. Avoid long medical jargon.
 Return ONLY valid JSON, no additional text."""
 

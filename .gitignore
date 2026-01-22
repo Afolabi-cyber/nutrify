@@ -1,8 +1,8 @@
-__pycache__/
 .env
-nutrify.db
+__pycache__/
 *.pyc
-.DS_Store
-venv/
-.idea/
-.vscode/
+.gitignore
+vercel.json
+BRD.md
+README.md
+static/uploads/*

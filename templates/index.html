@@ -93,6 +93,7 @@
             padding: 8px 16px;
             border-radius: 20px;
             transition: all 0.3s;
+            cursor: pointer;
         }
 
         .nav a:hover,
@@ -259,6 +260,13 @@
             border-radius: var(--radius-md);
             margin-bottom: 20px;
             box-shadow: var(--shadow-sm);
+            display: none;
+            /* Hidden by default until image is loaded */
+        }
+
+        /* Hide broken images if needed, but display:none is safer here */
+        .preview-image[src=""] {
+            display: none !important;
         }
 
         .indomie-badge {
@@ -682,6 +690,20 @@
             color: #2c4563;
         }
 
+        /* History Grid Styles */
+        .history-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+            gap: 20px;
+            padding: 10px 0;
+        }
+
+        @media (max-width: 480px) {
+            .history-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
         /* Responsive */
         @media (max-width: 768px) {
             .header-content {
@@ -708,9 +730,46 @@
                 display: block;
             }
 
-            body {
-                padding-bottom: 70px;
-            }
+        }
+
+        /* Toast Notification */
+        .toast-container {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 2000;
+        }
+
+        .toast {
+            background: white;
+            color: #1f2937;
+            padding: 16px 24px;
+            border-radius: 12px;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 10px;
+            transform: translateX(120%);
+            transition: transform 0.3s cubic-bezier(0.18, 0.89, 0.32, 1.28);
+            border-left: 4px solid var(--primary);
+            font-weight: 500;
+        }
+
+        .toast.show {
+            transform: translateX(0);
+        }
+
+        .toast.success {
+            border-left-color: #10b981;
+        }
+
+        .toast.error {
+            border-left-color: #ef4444;
+        }
+
+        .toast.info {
+            border-left-color: #3b82f6;
         }
     </style>
     <style>
@@ -1049,12 +1108,13 @@
             </div>
 
             <!-- Preview Section -->
-            <div class="preview-section" id="previewSection">
-                <img id="previewImage" class="preview-image" src="" alt="Food preview">
+            <div class="preview-section" id="previewSection" style="display: block;">
+                <img id="previewImage" class="preview-image" src="" alt="Food preview"
+                    onerror="this.style.display='none'">
                 <div class="indomie-badge">
-                    <span>🍜</span>
-                    <span>Indomie & Breakfast</span>
-                    <span>▶</span>
+                    <img src="/static/discovery_icon.png" alt="Nutrify"
+                        style="height: 24px; width: 24px; border-radius: 50%; vertical-align: middle;">
+                    <span style="vertical-align: middle;">Nutrify Discovery</span>
                 </div>
             </div>
         </div>
@@ -1062,12 +1122,12 @@
         <!-- Banner Section -->
         <div class="banner-section">
             <div class="banner-item">
-                <h3>Real arrow from</h3>
-                <p>Restingas</p>
+                <h3>Fresh & Healthy</h3>
+                <p>Eat well, live better with Nutrify's AI-powered meal analysis.</p>
             </div>
             <div class="banner-item">
-                <h3>Favorite village themes</h3>
-                <p>Ortstawa</p>
+                <h3>Explore Recipes</h3>
+                <p>Discover nutritional values and healthier alternatives for every meal.</p>
             </div>
         </div>
 
@@ -1119,28 +1179,18 @@
                 <div id="healthStatusBadge"></div>
             </div>
 
-            <!-- Nutritional Feedback -->
-            <div class="feedback-section">
-                <h3>Nutritional Feedback (Good or Bad?)</h3>
-                <div id="nutritionalFeedback"></div>
-            </div>
-
-            <!-- Ingredient Breakdown -->
-            <div class="feedback-section">
-                <h3>Ingredient Breakdown: Good or Bad?</h3>
-                <div class="breakdown-grid" id="ingredientBreakdown"></div>
-            </div>
-
             <!-- Product Suggestions -->
             <div class="product-suggestions">
-                <h3>DUFIL & Tolaram Product Suggestions</h3>
+                <h3>DUFIL Product Suggestions</h3>
                 <div id="productSuggestions"></div>
             </div>
 
-            <div class="action-buttons">
-                <button class="btn btn-primary" onclick="reset()">🔄 Analyze Another Meal</button>
+            <div class="action-buttons" style="margin-top: 30px;">
+                <button class="btn btn-primary" style="width: 100%;" onclick="reset()">🔄 Analyze Another Meal</button>
             </div>
         </div>
+
+    </div>
     </div>
 
     <!-- History Section -->
@@ -1150,6 +1200,11 @@
         </div>
         <div class="history-grid" id="historyGrid">
             <!-- History items will be populated here -->
+        </div>
+        <div id="historyDetail" style="display: none; padding-top: 20px;">
+            <div id="historyDetailContent"></div>
+            <button class="btn btn-secondary" style="width: 100%; margin-top: 20px;" onclick="closeHistoryDetail()">←
+                Back to History List</button>
         </div>
     </div>
 
@@ -1259,6 +1314,9 @@
         </div>
     </div>
 
+    <!-- Toast Container -->
+    <div id="toastContainer" class="toast-container"></div>
+
     <!-- Mobile Navigation -->
     <div class="mobile-nav">
         <div class="mobile-nav-items">
@@ -1294,12 +1352,42 @@
     </div>
 
     <script>
-        const API_URL = 'http://127.0.0.1:5000';
+        const API_URL = window.location.origin;
         let currentIngredients = [];
         let currentImage = null;
         let currentImageUrl = '';
         let currentUser = null;
         let authMode = 'login'; // login or signup
+
+        const brandLogos = {
+            'Indomie': '/static/logos/Indomie.png',
+            'Power Oil': '/static/logos/poweroil.png',
+            'Minimie': '/static/logos/minimie.png',
+            'Addmie': '/static/logos/addmie.png',
+            'Kelloggs': '/static/logos/Kelloggs.jpg'
+        };
+
+        function showToast(message, type = 'success') {
+            const container = document.getElementById('toastContainer');
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+
+            let icon = '✨';
+            if (type === 'error') icon = '❌';
+            if (type === 'info') icon = 'ℹ️';
+
+            toast.innerHTML = `<span>${icon}</span> <span>${message}</span>`;
+            container.appendChild(toast);
+
+            // Trigger animation
+            setTimeout(() => toast.classList.add('show'), 10);
+
+            // Remove after 3 seconds
+            setTimeout(() => {
+                toast.classList.remove('show');
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
 
         // Initialize
         document.addEventListener('DOMContentLoaded', () => {
@@ -1375,7 +1463,9 @@
                     updateProfileUI();
                     if (authMode === 'signup') {
                         // Maybe show onboarding or just let them into app
-                        alert('Account created successfully!');
+                        showToast('Account created successfully!', 'success');
+                    } else {
+                        showToast('Welcome back!', 'success');
                     }
                 } else {
                     errorElement.innerText = data.error || 'Authentication failed';
@@ -1400,14 +1490,17 @@
         }
 
         function loadProfile() {
-            showSection('profile');
-            if (currentUser) {
-                document.getElementById('p_fullname').value = currentUser.full_name || '';
-                document.getElementById('p_age').value = currentUser.age || '';
-                document.getElementById('p_height').value = currentUser.height || '';
-                document.getElementById('p_weight').value = currentUser.weight || '';
-                document.getElementById('p_gender').value = currentUser.gender || 'Male';
+            if (!currentUser) {
+                document.getElementById('authModal').style.display = 'flex';
+                switchAuthTab('login');
+                return;
             }
+            showSection('profile');
+            document.getElementById('p_fullname').value = currentUser.full_name || '';
+            document.getElementById('p_age').value = currentUser.age || '';
+            document.getElementById('p_height').value = currentUser.height || '';
+            document.getElementById('p_weight').value = currentUser.weight || '';
+            document.getElementById('p_gender').value = currentUser.gender || 'Male';
         }
 
         function updateProfileUI() {
@@ -1437,15 +1530,15 @@
 
                 const data = await response.json();
                 if (data.success) {
-                    alert('Profile updated successfully!');
+                    showToast('Profile updated successfully!', 'success');
                     // Update local user object
                     currentUser = { ...currentUser, ...updates };
                     updateProfileUI();
                 } else {
-                    alert('Failed to update profile: ' + data.error);
+                    showToast('Failed to update profile: ' + data.error, 'error');
                 }
             } catch (error) {
-                alert('Error connecting to server');
+                showToast('Error connecting to server', 'error');
             }
         }
 
@@ -1489,6 +1582,7 @@
             const reader = new FileReader();
             reader.onload = (e) => {
                 document.getElementById('previewImage').src = e.target.result;
+                document.getElementById('previewImage').style.display = 'block';
                 document.getElementById('previewSection').style.display = 'block';
                 document.getElementById('changeImageBtn').style.display = 'block';
                 document.getElementById('mainActions').style.display = 'flex';
@@ -1597,9 +1691,9 @@
             }
         }
 
-        function displayAnalysis(analysis) {
+        function displayAnalysis(analysis, targetPrefix = '') {
             // Health Score & Circle
-            const statusBadge = document.getElementById('healthStatusBadge');
+            const statusBadge = document.getElementById(targetPrefix + 'healthStatusBadge');
             const scoreColor = analysis.overall_health_status === 'good' ? 'good' :
                 (analysis.overall_health_status === 'moderate' ? 'moderate' : 'bad');
 
@@ -1614,15 +1708,6 @@
             `;
 
             // Setup Grid
-            const feedbackDiv = document.getElementById('nutritionalFeedback');
-            const breakdownDiv = document.getElementById('ingredientBreakdown');
-
-            // Clear previous content and ensure we don't have duplicate grids
-            const existingGrid = document.querySelector('.analysis-grid');
-            if (existingGrid) {
-                existingGrid.remove();
-            }
-
             const gridContainer = document.createElement('div');
             gridContainer.className = 'analysis-grid';
 
@@ -1663,39 +1748,38 @@
             gridContainer.appendChild(badCol);
 
             // We want to insert this after the header
-            const header = document.querySelector('.analysis-header');
-            // Check if we are in view mode or analyze mode, handle insertion safely
-            const analysisSection = document.getElementById('analysisSection');
-            const existingHeader = analysisSection.querySelector('.analysis-header');
-            if (existingHeader) {
-                existingHeader.after(gridContainer);
+            const targetSectionId = targetPrefix === 'h_' ? 'historyDetailContent' : 'analysisSection';
+            const targetSection = document.getElementById(targetSectionId);
+
+            // Clear existing grid if any in that section
+            const existingGrid = targetSection.querySelector('.analysis-grid');
+            if (existingGrid) existingGrid.remove();
+
+            if (targetPrefix === 'h_') {
+                targetSection.appendChild(gridContainer);
+            } else {
+                const header = targetSection.querySelector('.analysis-header');
+                if (header) header.after(gridContainer);
             }
 
-
             // Product Suggestions
-            const suggestionsDiv = document.getElementById('productSuggestions');
+            const suggestionsDiv = document.getElementById(targetPrefix + 'productSuggestions');
             suggestionsDiv.innerHTML = '';
 
             analysis.dufil_products.forEach(product => {
-                suggestionsDiv.innerHTML += `
-                    <div class="feedback-card good">
-                        <div class="feedback-title" style="font-weight:bold; margin-bottom:5px;">${product.product_name}</div>
-                        <div class="feedback-content">
-                            ${product.reason} <br>
-                            <small>Benefit: ${product.benefit}</small>
-                        </div>
-                    </div>
-                `;
-            });
+                const brandName = Object.keys(brandLogos).find(b => product.product_name.includes(b));
+                const logoUrl = brandName ? brandLogos[brandName] : null;
 
-            analysis.tolaram_products.forEach(product => {
                 suggestionsDiv.innerHTML += `
-                    <div class="feedback-card good">
-                       <div class="feedback-title" style="font-weight:bold; margin-bottom:5px;">${product.product_name}</div>
-                        <div class="feedback-content">
-                            ${product.usage} <br>
-                            <small>Benefit: ${product.benefit}</small>
+                    <div class="feedback-card good" style="display: flex; align-items: center; gap: 15px;">
+                        <div style="flex: 1;">
+                            <div class="feedback-title" style="font-weight:bold; margin-bottom:5px;">${product.product_name}</div>
+                            <div class="feedback-content">
+                                ${product.reason} <br>
+                                <small>Benefit: ${product.benefit}</small>
+                            </div>
                         </div>
+                        ${logoUrl ? `<img src="${logoUrl}" alt="${product.product_name}" style="height: 50px; width: 50px; object-fit: contain;">` : ''}
                     </div>
                 `;
             });
@@ -1760,71 +1844,87 @@
             const item = JSON.parse(decodeURIComponent(itemDataEncoded));
             const analysis = item.analysis;
 
-            showSection('home');
+            // Stay in history section
+            document.getElementById('historyGrid').style.display = 'none';
+            document.getElementById('historyDetail').style.display = 'block';
 
-            // Set image
-            if (item.image_url) {
-                document.getElementById('previewImage').src = item.image_url;
-                document.getElementById('previewSection').style.display = 'block';
-                // Hide upgrade/change buttons since it's history
-                document.getElementById('changeImageBtn').style.display = 'none';
-                document.getElementById('mainActions').style.display = 'none';
-            } else {
-                document.getElementById('previewSection').style.display = 'none';
-            }
+            const detailContent = document.getElementById('historyDetailContent');
+            detailContent.innerHTML = `
+                <div class="analysis-header">
+                    <h2>History Detail</h2>
+                    <div id="h_healthStatusBadge"></div>
+                </div>
+                
+                ${item.image_url ? `<div style="text-align:center;"><img src="${item.image_url}" class="preview-image" style="display:inline-block; max-width: 300px; width: 100%; height: auto; margin: 0 auto 20px; border-radius: var(--radius-md); box-shadow: var(--shadow-md);"></div>` : ''}
 
-            document.getElementById('analysisSection').style.display = 'block';
-            displayAnalysis(analysis);
-            document.getElementById('analysisSection').scrollIntoView({ behavior: 'smooth' });
+                <div class="feedback-section">
+                    <h3>DUFIL Product Suggestions</h3>
+                    <div id="h_productSuggestions"></div>
+                </div>
+            `;
 
-            // Hide ingredients part as we are viewing result
-            document.getElementById('ingredientsSection').style.display = 'none';
+            displayAnalysis(analysis, 'h_');
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        function closeHistoryDetail() {
+            document.getElementById('historyDetail').style.display = 'none';
+            document.getElementById('historyGrid').style.display = 'grid';
+            window.scrollTo({ top: 0, behavior: 'smooth' });
         }
 
         function showSection(section) {
-            // Simple router-like visibility toggle
+            // All top-level sections that should be mutually exclusive
+            const allSections = ['.main-section', '.banner-section', '.features', '#ingredientsSection', '#analysisSection', '#historySection', '#profileSection', '#loading', '#errorMessage'];
+
+            // Hide everything first
+            allSections.forEach(s => {
+                const el = document.querySelector(s) || document.getElementById(s.startsWith('#') ? s.substring(1) : '');
+                if (el) el.style.display = 'none';
+            });
+
             if (section === 'history') {
-                document.querySelector('.main-section').style.display = 'none';
-                document.querySelector('.banner-section').style.display = 'none';
-                document.querySelector('.features').style.display = 'none';
                 document.getElementById('historySection').style.display = 'block';
-                document.getElementById('analysisSection').style.display = 'none';
-                document.getElementById('profileSection').style.display = 'none';
-
-                // Update Nav Active State
-                document.querySelectorAll('.mobile-nav-item').forEach(el => el.classList.remove('active'));
-                document.querySelectorAll('.mobile-nav-item')[1].classList.add('active'); // History is index 1
-
+                closeHistoryDetail();
+                updateNavActive('history');
             } else if (section === 'profile') {
-                document.querySelector('.main-section').style.display = 'none';
-                document.querySelector('.banner-section').style.display = 'none';
-                document.querySelector('.features').style.display = 'none';
-                document.getElementById('historySection').style.display = 'none';
-                document.getElementById('analysisSection').style.display = 'none';
                 document.getElementById('profileSection').style.display = 'block';
-
-                // Update Nav Active State
-                document.querySelectorAll('.mobile-nav-item').forEach(el => el.classList.remove('active'));
-                document.querySelectorAll('.mobile-nav-item')[2].classList.add('active'); // Profile is index 2
-
+                updateNavActive('profile');
             } else {
-                document.querySelector('.main-section').style.display = 'grid'; // Restore grid
+                // Home view
+                document.querySelector('.main-section').style.display = 'grid';
                 document.querySelector('.banner-section').style.display = 'grid';
                 document.querySelector('.features').style.display = 'grid';
-                document.getElementById('historySection').style.display = 'none';
-                document.getElementById('profileSection').style.display = 'none';
-
-                document.querySelectorAll('.mobile-nav-item').forEach(el => el.classList.remove('active'));
-                document.querySelectorAll('.mobile-nav-item')[0].classList.add('active'); // Home is index 0
+                updateNavActive('home');
             }
             window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        function updateNavActive(section) {
+            // Update Mobile Nav
+            document.querySelectorAll('.mobile-nav-item').forEach(el => el.classList.remove('active'));
+            // Update Desktop Nav
+            document.querySelectorAll('.nav a').forEach(el => el.classList.remove('active'));
+
+            if (section === 'history') {
+                document.querySelectorAll('.mobile-nav-item')[1].classList.add('active');
+                document.querySelectorAll('.nav a')[1].classList.add('active');
+            } else if (section === 'profile') {
+                document.querySelectorAll('.mobile-nav-item')[2].classList.add('active');
+                document.querySelectorAll('.nav a')[2].classList.add('active');
+            } else {
+                document.querySelectorAll('.mobile-nav-item')[0].classList.add('active');
+                document.querySelectorAll('.nav a')[0].classList.add('active');
+            }
         }
 
         function reset() {
             currentIngredients = [];
             currentImage = null;
             currentImageUrl = '';
-            document.getElementById('previewSection').style.display = 'none';
+            document.getElementById('previewImage').src = '';
+            document.getElementById('previewImage').style.display = 'none';
+            document.getElementById('previewSection').style.display = 'block'; // Keep icon badge visible
             document.getElementById('ingredientsSection').style.display = 'none';
             document.getElementById('analysisSection').style.display = 'none';
             document.getElementById('changeImageBtn').style.display = 'none';
