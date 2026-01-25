@@ -4,7 +4,4 @@ python-dotenv
 google-genai
 werkzeug
 gunicorn
-<<<<<<< HEAD
-=======
 google-api-core
->>>>>>> be4fd01c8b4ea3869c7cf45f089e25671eea8566
