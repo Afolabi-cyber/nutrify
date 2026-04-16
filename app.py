@@ -17,7 +17,11 @@ load_dotenv()
 
 app = Flask(__name__)
 app.secret_key = os.getenv('SECRET_KEY', 'dev_key_very_secret_123')
-CORS(app)
+CORS(
+    app,
+    origins=["http://localhost:8080"],
+    supports_credentials=True
+)
 
 # Configuration
 UPLOAD_FOLDER = 'static/uploads'
