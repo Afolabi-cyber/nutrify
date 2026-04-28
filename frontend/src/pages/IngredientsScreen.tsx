@@ -8,13 +8,15 @@ import { BASE_URL } from "@/lib/api";
 
 const IngredientsScreen = () => {
   const navigate = useNavigate();
+  const [error, setError] = useState<string | null>(null);
   const { theme, setTheme } = useTheme();
   const [ingredients, setIngredients] = useState<{ id: number; name: string }[]>([]);
   const [isAdding, setIsAdding] = useState(false);
   const [newIngredient, setNewIngredient] = useState("");
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [retryCount, setRetryCount] = useState(0);
+  const MAX_RETRIES = 3;
 
-  // Load ingredients detected by Flask from sessionStorage
   useEffect(() => {
     const stored = sessionStorage.getItem("nutrify_ingredients");
     if (stored) {
@@ -38,37 +40,64 @@ const IngredientsScreen = () => {
     }
   };
 
+  const sleep = (ms: number) => new Promise((res) => setTimeout(res, ms));
+
   const handleAnalyze = async () => {
     setIsAnalyzing(true);
-    try {
-      const imageUrl = sessionStorage.getItem("nutrify_image_url") || "";
-      const ingredientNames = ingredients.map((i) => i.name);
+    setError(null);
 
-      const response = await fetch(`${BASE_URL}/api/analyze-health`, {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ingredients: ingredientNames, image_url: imageUrl }),
-      });
+    const imageUrl = sessionStorage.getItem("nutrify_image_url") || "";
+    const ingredientNames = ingredients.map((i) => i.name);
 
-      const data = await response.json();
+    for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+      try {
+        if (attempt > 0) {
+          const delay = Math.pow(2, attempt) * 1000 + Math.random() * 500;
+          setError(`Service busy. Retrying in ${Math.round(delay / 1000)}s... (attempt ${attempt}/${MAX_RETRIES})`);
+          await sleep(delay);
+        }
 
-      if (data.success) {
-        sessionStorage.setItem("nutrify_analysis", JSON.stringify(data.analysis));
-        navigate("/app/analysis");
-      } else {
-        console.error("API error:", data.error);
-        setIsAnalyzing(false);
+        const response = await fetch(`${BASE_URL}/api/analyze-health`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ ingredients: ingredientNames, image_url: imageUrl }),
+        });
+
+        const data = await response.json();
+
+        if (response.status === 500 && data.error?.includes("503")) {
+          if (attempt === MAX_RETRIES) {
+            setError("AI service is currently overloaded. Please try again in a minute.");
+            setIsAnalyzing(false);
+            return;
+          }
+          continue;
+        }
+
+        if (data.success) {
+          setError(null);
+          sessionStorage.setItem("nutrify_analysis", JSON.stringify(data.analysis));
+          navigate("/app/analysis");
+          return;
+        } else {
+          setError("Analysis failed. Please try again.");
+          setIsAnalyzing(false);
+          return;
+        }
+      } catch (err) {
+        if (attempt === MAX_RETRIES) {
+          setError("Request failed. Please check your connection and try again.");
+          setIsAnalyzing(false);
+          return;
+        }
       }
-    } catch (err) {
-      console.error("Request failed:", err);
-      setIsAnalyzing(false);
     }
+
+    setIsAnalyzing(false);
   };
 
   return (
     <div className="min-h-screen bg-background pb-24">
-      {/* Header */}
       <div className="px-5 pt-12 pb-3">
         <div className="flex items-center justify-between max-w-md md:max-w-2xl lg:max-w-3xl mx-auto">
           <div className="flex items-center gap-3">
@@ -179,8 +208,22 @@ const IngredientsScreen = () => {
           disabled={isAnalyzing || ingredients.length === 0}
           className="w-full h-12 nutrify-gradient text-primary-foreground border-0 rounded-xl font-medium text-sm nutrify-shadow hover:opacity-90 mt-2"
         >
-          {isAnalyzing ? "Analyzing..." : "Analyze Meal"}
+          {isAnalyzing
+            ? error?.includes("Retrying")
+              ? "Retrying..."
+              : "Analyzing..."
+            : "Analyze Meal"}
         </Button>
+
+        {error && (
+          <motion.p
+            initial={{ opacity: 0, y: 4 }}
+            animate={{ opacity: 1, y: 0 }}
+            className={`text-sm mt-2 ${error.includes("Retrying") ? "text-yellow-500" : "text-red-500"}`}
+          >
+            {error}
+          </motion.p>
+        )}
       </div>
     </div>
   );

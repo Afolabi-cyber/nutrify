@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>DUFIL Food Analyzer</title>
+    <title>NUTRIFY Food Analyzer</title>
     <!-- Premium Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -1060,7 +1060,7 @@
     <div class="header">
         <div class="header-content">
             <div class="logo" onclick="window.location.href='/'" style="cursor: pointer;">
-                <img src="/static/logo.png" alt="DUFIL Logo" style="height: 50px;">
+                <img src="/static/logo.png" alt="NUTRIFY Logo" style="height: 50px;">
             </div>
             <div class="nav">
                 <a href="javascript:void(0)" class="active" onclick="showSection('home')">Home</a>
@@ -1140,7 +1140,7 @@
                 <h3>Discover<br>New Flavors</h3>
             </div>
             <div class="feature-card">
-                <h3>DUFIL<br>Goodness</h3>
+                <h3>NUTRIFY<br>Goodness</h3>
             </div>
         </div>
 
@@ -1181,7 +1181,7 @@
 
             <!-- Product Suggestions -->
             <div class="product-suggestions">
-                <h3>DUFIL Product Suggestions</h3>
+                <h3>NUTRIFY Product Suggestions</h3>
                 <div id="productSuggestions"></div>
             </div>
 
@@ -1766,7 +1766,7 @@
             const suggestionsDiv = document.getElementById(targetPrefix + 'productSuggestions');
             suggestionsDiv.innerHTML = '';
 
-            analysis.dufil_products.forEach(product => {
+            analysis.nutrify_products.forEach(product => {
                 const brandName = Object.keys(brandLogos).find(b => product.product_name.includes(b));
                 const logoUrl = brandName ? brandLogos[brandName] : null;
 
@@ -1858,7 +1858,7 @@
                 ${item.image_url ? `<div style="text-align:center;"><img src="${item.image_url}" class="preview-image" style="display:inline-block; max-width: 300px; width: 100%; height: auto; margin: 0 auto 20px; border-radius: var(--radius-md); box-shadow: var(--shadow-md);"></div>` : ''}
 
                 <div class="feedback-section">
-                    <h3>DUFIL Product Suggestions</h3>
+                    <h3>NUTRIFY Product Suggestions</h3>
                     <div id="h_productSuggestions"></div>
                 </div>
             `;

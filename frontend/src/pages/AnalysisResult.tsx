@@ -5,13 +5,13 @@ import { Button } from "@/components/ui/button";
 import { useTheme } from "next-themes";
 import { Progress } from "@/components/ui/progress";
 import { useNavigate } from "react-router-dom";
+import { BASE_URL } from "@/lib/api";
 
 const AnalysisResult = () => {
   const navigate = useNavigate();
   const { theme, setTheme } = useTheme();
   const [analysis, setAnalysis] = useState<any>(null);
 
-  // Load real analysis from sessionStorage (saved by IngredientsScreen after /api/analyze-health)
   useEffect(() => {
     const stored = sessionStorage.getItem("nutrify_analysis");
     if (stored) {
@@ -19,7 +19,6 @@ const AnalysisResult = () => {
     }
   }, []);
 
-  // Map real API response fields to the UI shape
   const goodStuff = analysis?.nutritional_highlights?.map((h: string) => ({
     nutrient: h,
     detail: "",
@@ -30,17 +29,17 @@ const AnalysisResult = () => {
     detail: "",
   })) || [];
 
-  const supplements = analysis?.dufil_products?.map((p: any) => ({
+  const supplements = analysis?.nutrify_products?.map((p: any) => ({
     name: p.product_name,
     benefit: p.benefit,
-    price: "",
+     link: p.link || "https://nutrifyng.com/collections/all",
+    image_url: p.image_url || null,
   })) || [];
 
   const healthScore = analysis?.health_score ?? 0;
 
   return (
     <div className="min-h-screen bg-background pb-24">
-      {/* Header */}
       <div className="px-5 pt-12 pb-3">
         <div className="flex items-center justify-between max-w-md md:max-w-4xl lg:max-w-5xl mx-auto">
           <div className="flex items-center gap-3">
@@ -65,7 +64,6 @@ const AnalysisResult = () => {
       <div className="px-5 max-w-md md:max-w-4xl lg:max-w-5xl mx-auto mt-4 md:mt-10">
         <div className="grid md:grid-cols-[1fr_1.2fr] gap-6 md:gap-10">
           <div className="space-y-5 md:space-y-8">
-            {/* Score */}
             <motion.div
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
@@ -93,7 +91,75 @@ const AnalysisResult = () => {
               </div>
             </motion.div>
 
-            {/* Supplement / DUFIL product suggestions */}
+            {/* <motion.div
+              initial={{ opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.24 }}
+            >
+              <h3 className="font-medium text-xs uppercase tracking-wider text-muted-foreground mb-3 flex items-center gap-1.5">
+                <ShoppingCart className="h-3.5 w-3.5" /> Suggested Products
+              </h3>
+              <div className="space-y-2">
+                {supplements.length > 0 ? (
+                  supplements.map((sup: any) => (
+                    <div
+                      key={sup.name}
+                      className="bg-card rounded-xl p-4 border border-border/30 flex items-center gap-3"
+                    >
+                      {sup.image_url ? (
+                        <img
+                          src={`${BASE_URL}${sup.image_url}`}
+                          alt={sup.name}
+                          className="w-14 h-14 rounded-xl object-contain bg-muted/40 shrink-0 p-1"
+                          onError={(e) => {
+                            (e.target as HTMLImageElement).style.display = "none";
+                          }}
+                        />
+                      ) : (
+                        <div className="w-14 h-14 rounded-xl bg-muted/40 shrink-0 flex items-center justify-center">
+                          <ShoppingCart className="h-5 w-5 text-muted-foreground" />
+                        </div>
+                      )}
+                     <div
+                    key={sup.name}
+                    className="bg-card rounded-xl p-4 border border-border/30 flex items-center gap-3"
+                  >
+                    {sup.image_url ? (
+                      <img
+                        src={`${BASE_URL}${sup.image_url}`}
+                        alt={sup.name}
+                        className="w-14 h-14 rounded-xl object-contain bg-muted/40 shrink-0 p-1"
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).style.display = "none";
+                        }}
+                      />
+                    ) : (
+                      <div className="w-14 h-14 rounded-xl bg-muted/40 shrink-0 flex items-center justify-center">
+                        <ShoppingCart className="h-5 w-5 text-muted-foreground" />
+                      </div>
+                    )}
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium text-sm">{sup.name}</p>
+                      <p className="text-[11px] text-muted-foreground leading-relaxed">{sup.benefit}</p>
+                      {sup.link && (
+                        <a
+                          href={sup.link}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-[11px] font-medium text-primary hover:underline mt-1 inline-block"
+                        >
+                          View Product →
+                        </a>
+                      )}
+                    </div>
+                  </div>
+                    </div>
+                  ))
+                ) : (
+                  <p className="text-xs text-muted-foreground">No product suggestions available.</p>
+                )}
+              </div>
+            </motion.div> */}
             <motion.div
               initial={{ opacity: 0, y: 16 }}
               animate={{ opacity: 1, y: 0 }}
@@ -107,17 +173,34 @@ const AnalysisResult = () => {
                   supplements.map((sup: any) => (
                     <div
                       key={sup.name}
-                      className="bg-card rounded-xl p-4 border border-border/30 flex items-center justify-between"
+                      className="bg-card rounded-xl p-4 border border-border/30 flex items-center gap-3"
                     >
-                      <div>
-                        <p className="font-medium text-sm">{sup.name}</p>
-                        <p className="text-[11px] text-muted-foreground">{sup.benefit}</p>
-                      </div>
-                      {sup.price && (
-                        <span className="text-xs font-semibold text-primary whitespace-nowrap ml-3">
-                          {sup.price}
-                        </span>
+                      {sup.image_url ? (
+                        <img
+                          src={`${BASE_URL}${sup.image_url}`}
+                          alt={sup.name}
+                          className="w-14 h-14 rounded-xl object-contain bg-muted/40 shrink-0 p-1"
+                          onError={(e) => {
+                            (e.target as HTMLImageElement).style.display = "none";
+                          }}
+                        />
+                      ) : (
+                        <div className="w-14 h-14 rounded-xl bg-muted/40 shrink-0 flex items-center justify-center">
+                          <ShoppingCart className="h-5 w-5 text-muted-foreground" />
+                        </div>
                       )}
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium text-sm">{sup.name}</p>
+                        <p className="text-[11px] text-muted-foreground leading-relaxed">{sup.benefit}</p>
+                        <a
+                          href={sup.link}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-[11px] font-medium text-primary mt-1 underline"
+                        >
+                          View Product
+                        </a>
+                      </div>
                     </div>
                   ))
                 ) : (
@@ -128,7 +211,6 @@ const AnalysisResult = () => {
           </div>
 
           <div className="space-y-5 md:space-y-8">
-            {/* Good stuff */}
             <motion.div
               initial={{ opacity: 0, y: 16 }}
               animate={{ opacity: 1, y: 0 }}
@@ -157,7 +239,6 @@ const AnalysisResult = () => {
               </div>
             </motion.div>
 
-            {/* Watch out */}
             <motion.div
               initial={{ opacity: 0, y: 16 }}
               animate={{ opacity: 1, y: 0 }}

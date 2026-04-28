@@ -15,6 +15,7 @@ const AppHome = () => {
   const [cameraOpen, setCameraOpen] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [notFood, setNotFood] = useState(false);
   const { theme, setTheme } = useTheme();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -29,9 +30,9 @@ const AppHome = () => {
   const handleProcessImage = async (imageDataUrl: string) => {
     setImagePreview(imageDataUrl);
     setIsProcessing(true);
+    setNotFood(false);
 
     try {
-      // Convert base64 dataURL to a File blob
       const res = await fetch(imageDataUrl);
       const blob = await res.blob();
       const file = new File([blob], "meal.jpg", { type: blob.type });
@@ -41,8 +42,7 @@ const AppHome = () => {
 
       const response = await fetch(`${BASE_URL}/api/analyze-food`, {
         method: "POST",
-        credentials: "include",
-        body: formData, // Do NOT set Content-Type manually with FormData
+        body: formData,
       });
 
       const data = await response.json();
@@ -52,12 +52,16 @@ const AppHome = () => {
         sessionStorage.setItem("nutrify_image_url", data.image_url);
         navigate("/app/ingredients");
       } else {
-        console.error("API error:", data.error);
+        if (data.error === "not_food") {
+          setNotFood(true);
+        }
         setIsProcessing(false);
+        setImagePreview(null);
       }
     } catch (err) {
       console.error("Request failed:", err);
       setIsProcessing(false);
+      setImagePreview(null);
     }
   };
 
@@ -74,22 +78,11 @@ const AppHome = () => {
 
   return (
     <div className="min-h-screen bg-background pb-24">
-      {/* Header */}
       <div className="px-5 pt-12 pb-2">
         <div className="flex items-center justify-between max-w-md md:max-w-4xl lg:max-w-5xl mx-auto">
           <Link to="/" className="flex items-center">
-            {/* Light mode logo */}
-            <img
-              src={logoLight}
-              alt="Nutrify"
-              className="h-10 w-auto block dark:hidden"
-            />
-            {/* Dark mode logo */}
-            <img
-              src={logoDark}
-              alt="Nutrify"
-              className="h-10 w-auto hidden dark:block"
-            />
+            <img src={logoLight} alt="Nutrify" className="h-10 w-auto block dark:hidden" />
+            <img src={logoDark} alt="Nutrify" className="h-10 w-auto hidden dark:block" />
           </Link>
           <button
             onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
@@ -104,7 +97,7 @@ const AppHome = () => {
         </div>
       </div>
 
-      <div className="px-5  max-w-md md:max-w-4xl lg:max-w-5xl mx-auto mt-6 md:mt-20">
+      <div className="px-5 max-w-md md:max-w-4xl lg:max-w-5xl mx-auto mt-6 md:mt-20">
         <div className="grid md:grid-cols-2 gap-10 md:gap-16 items-center">
           <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} className="text-center md:text-left">
             <h1 className="font-serif text-3xl md:text-5xl lg:text-[3.5rem] leading-[1.1] tracking-tight mb-4 text-foreground">
@@ -115,7 +108,6 @@ const AppHome = () => {
             </p>
           </motion.div>
 
-          {/* Upload card */}
           <motion.div
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
@@ -134,6 +126,34 @@ const AppHome = () => {
                     </div>
                     <p className="text-white font-medium text-sm">Uploading & Analyzing...</p>
                   </div>
+                </div>
+              </div>
+            ) : notFood ? (
+              <div className="space-y-5 text-center py-4">
+                <div className="text-5xl">🚫</div>
+                <div>
+                  <p className="font-semibold text-foreground text-base">That's not food!</p>
+                  <p className="text-sm text-muted-foreground mt-1">Please upload a photo of a meal or food item.</p>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <Button
+                    className="bg-[#2b5934] hover:bg-[#204427] text-white border-0 rounded-xl h-11 font-medium"
+                    onClick={() => {
+                      setNotFood(false);
+                      setCameraOpen(true);
+                    }}
+                  >
+                    <Camera className="mr-2 h-4 w-4" /> Scan
+                  </Button>
+                  <Button
+                    className="bg-[#2b5934] hover:bg-[#204427] text-white border-0 rounded-xl h-11 font-medium"
+                    onClick={() => {
+                      setNotFood(false);
+                      fileInputRef.current?.click();
+                    }}
+                  >
+                    <Upload className="mr-2 h-4 w-4" /> Upload
+                  </Button>
                 </div>
               </div>
             ) : (
